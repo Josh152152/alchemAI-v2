@@ -8,18 +8,26 @@ const app = express();
 
 // Configure CORS to accept requests only from your Webflow frontend domain
 app.use(cors({
-  origin: 'https://alchemai-v2.webflow.io', // <-- update if your domain changes
+  origin: 'https://alchemai-v2.webflow.io', // <-- update this to your actual Webflow domain if different
   credentials: true,
 }));
 
 app.use(express.json());
 
-// Initialize Firebase Admin SDK (set GOOGLE_APPLICATION_CREDENTIALS or use service account key)
+// Initialize Firebase Admin SDK using service account JSON stored in environment variable
 if (!admin.apps.length) {
+  if (!process.env.FIREBASE_SERVICE_ACCOUNT) {
+    console.error('FIREBASE_SERVICE_ACCOUNT environment variable is not set!');
+    process.exit(1);
+  }
+
+  const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+
   admin.initializeApp({
-    credential: admin.credential.applicationDefault(), // or use serviceAccountKey.json
+    credential: admin.credential.cert(serviceAccount),
   });
 }
+
 const db = admin.firestore();
 
 const openai = new OpenAI({
@@ -86,7 +94,7 @@ app.post('/openai', async (req, res) => {
 
     const reply = completion.choices[0]?.message?.content || 'Sorry, no response generated.';
 
-    // Save chat to Firestore only if reply is valid
+    // Save user prompt and AI reply to Firestore
     await db.collection('users').doc(uid).collection('chats').add({
       prompt,
       reply,
