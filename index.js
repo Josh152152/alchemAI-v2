@@ -5,7 +5,13 @@ import fs from 'fs/promises';
 import admin from 'firebase-admin';
 
 const app = express();
-app.use(cors());
+
+// Configure CORS to accept requests only from your Webflow frontend domain
+app.use(cors({
+  origin: 'https://alchemai-v2.webflow.io', // <-- replace with your actual Webflow domain if different
+  credentials: true,
+}));
+
 app.use(express.json());
 
 // Initialize Firebase Admin SDK (make sure to set GOOGLE_APPLICATION_CREDENTIALS or initialize with service account)
