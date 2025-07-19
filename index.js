@@ -8,7 +8,7 @@ const app = express();
 
 // Configure CORS to accept requests only from your Webflow frontend domain
 app.use(cors({
-  origin: 'https://alchemai-v2.webflow.io', // <-- update this to your actual Webflow domain if different
+  origin: 'https://alchemai-v2.webflow.io', // <-- update if needed
   credentials: true,
 }));
 
@@ -93,6 +93,7 @@ app.post('/openai', async (req, res) => {
     });
 
     const reply = completion.choices[0]?.message?.content || 'Sorry, no response generated.';
+    console.log('OpenAI reply:', reply);
 
     // Save user prompt and AI reply to Firestore
     await db.collection('users').doc(uid).collection('chats').add({
