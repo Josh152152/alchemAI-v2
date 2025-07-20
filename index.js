@@ -11,8 +11,8 @@ const app = express();
 const allowedOrigin = "https://yourdomain.com";
 
 app.use(cors({
-  origin: allowedOrigin,
-  credentials: true,
+  origin: 'https://alchemai-v2.webflow.io', // your actual frontend domain here
+  credentials: true
 }));
 
 app.use(express.json());
