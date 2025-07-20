@@ -1,80 +1,60 @@
-import express from 'express';
-import cors from 'cors';
-import OpenAI from 'openai';
-import fs from 'fs/promises';
-import admin from 'firebase-admin';
+import * as functions from "firebase-functions";
+import * as admin from "firebase-admin";
+import OpenAI from "openai";
+import fs from "fs/promises";
 
-const app = express();
-
-// Configure CORS to accept requests only from your Webflow frontend domain
-app.use(cors({
-  origin: 'https://alchemai-v2.webflow.io', // <-- update if needed
-  credentials: true,
-}));
-
-app.use(express.json());
-
-// Initialize Firebase Admin SDK using service account JSON stored in environment variable
-if (!admin.apps.length) {
-  if (!process.env.FIREBASE_SERVICE_ACCOUNT) {
-    console.error('FIREBASE_SERVICE_ACCOUNT environment variable is not set!');
-    process.exit(1);
-  }
-
-  const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-  });
-}
-
+admin.initializeApp();
 const db = admin.firestore();
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+  apiKey: functions.config().openai.key, // store in Firebase config (see below)
 });
 
 // Helper to load agent specification prompt
 async function loadAgentSpecification() {
   try {
-    return await fs.readFile('./agent_specification.txt', 'utf-8');
+    return await fs.readFile("./agent_specification.txt", "utf-8");
   } catch (err) {
-    console.error('Failed to load agent specification:', err);
-    return 'You are a helpful AI assistant.'; // fallback prompt
+    console.error("Failed to load agent specification:", err);
+    return "You are a helpful AI assistant.";
   }
 }
 
-// Fetch recent chat history for user from Firestore, return as OpenAI messages array
+// Fetch recent chat history for user from Firestore
 async function fetchChatHistory(uid, limit = 10) {
   try {
     const chatsSnapshot = await db
-      .collection('users')
+      .collection("users")
       .doc(uid)
-      .collection('chats')
-      .orderBy('timestamp', 'desc')
+      .collection("chats")
+      .orderBy("timestamp", "desc")
       .limit(limit)
       .get();
 
-    // Reverse order so oldest first
     const chats = [];
-    chatsSnapshot.docs.reverse().forEach(doc => {
+    chatsSnapshot.docs.reverse().forEach((doc) => {
       const data = doc.data();
-      if (data.prompt) chats.push({ role: 'user', content: data.prompt });
-      if (data.reply) chats.push({ role: 'assistant', content: data.reply });
+      if (data.prompt) chats.push({ role: "user", content: data.prompt });
+      if (data.reply) chats.push({ role: "assistant", content: data.reply });
     });
 
     return chats;
   } catch (err) {
-    console.error('Failed to fetch chat history:', err);
+    console.error("Failed to fetch chat history:", err);
     return [];
   }
 }
 
-app.post('/openai', async (req, res) => {
+// Export a HTTPS Firebase function to handle your OpenAI requests
+export const openaiFunction = functions.https.onRequest(async (req, res) => {
+  if (req.method !== "POST") {
+    return res.status(405).send("Method Not Allowed");
+  }
+
   const { prompt, uid } = req.body;
 
   if (!prompt || !uid) {
-    return res.status(400).json({ error: 'Missing prompt or uid' });
+    return res.status(400).json({ error: "Missing prompt or uid" });
   }
 
   try {
@@ -82,21 +62,21 @@ app.post('/openai', async (req, res) => {
     const chatHistory = await fetchChatHistory(uid);
 
     const messages = [
-      { role: 'system', content: systemPrompt },
+      { role: "system", content: systemPrompt },
       ...chatHistory,
-      { role: 'user', content: prompt },
+      { role: "user", content: prompt },
     ];
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4',
+      model: "gpt-4",
       messages,
     });
 
-    const reply = completion.choices[0]?.message?.content || 'Sorry, no response generated.';
-    console.log('OpenAI reply:', reply);
+    const reply = completion.choices[0]?.message?.content || "Sorry, no response generated.";
+    console.log("OpenAI reply:", reply);
 
-    // Save user prompt and AI reply to Firestore
-    await db.collection('users').doc(uid).collection('chats').add({
+    // Save chat to Firestore
+    await db.collection("users").doc(uid).collection("chats").add({
       prompt,
       reply,
       timestamp: admin.firestore.FieldValue.serverTimestamp(),
@@ -104,12 +84,7 @@ app.post('/openai', async (req, res) => {
 
     res.json({ reply });
   } catch (error) {
-    console.error('OpenAI request failed:', error);
-    res.status(500).json({ error: error.message || 'OpenAI request failed' });
+    console.error("OpenAI request failed:", error);
+    res.status(500).json({ error: error.message || "OpenAI request failed" });
   }
-});
-
-const port = process.env.PORT || 3000;
-app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
 });
