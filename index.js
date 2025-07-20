@@ -1,15 +1,37 @@
-import * as admin from "firebase-admin";
+import express from "express";
+import cors from "cors";
+import admin from "firebase-admin";
 import OpenAI from "openai";
 import fs from "fs/promises";
 
-admin.initializeApp();
+// Initialize Express app
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+// Initialize Firebase Admin SDK
+if (!admin.apps.length) {
+  const serviceAccountJSON = process.env.FIREBASE_SERVICE_ACCOUNT;
+  if (!serviceAccountJSON) {
+    console.error("Missing FIREBASE_SERVICE_ACCOUNT environment variable");
+    process.exit(1);
+  }
+
+  const serviceAccount = JSON.parse(serviceAccountJSON);
+
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+  });
+}
+
 const db = admin.firestore();
 
+// Initialize OpenAI client
 const openai = new OpenAI({
-  apiKey: functions.config().openai.key, // store in Firebase config (see below)
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
-// Helper to load agent specification prompt
+// Load agent specification prompt from file
 async function loadAgentSpecification() {
   try {
     return await fs.readFile("./agent_specification.txt", "utf-8");
@@ -19,10 +41,10 @@ async function loadAgentSpecification() {
   }
 }
 
-// Fetch recent chat history for user from Firestore
+// Fetch last N chat messages from Firestore for user
 async function fetchChatHistory(uid, limit = 10) {
   try {
-    const chatsSnapshot = await db
+    const snapshot = await db
       .collection("users")
       .doc(uid)
       .collection("chats")
@@ -30,28 +52,23 @@ async function fetchChatHistory(uid, limit = 10) {
       .limit(limit)
       .get();
 
+    // Reverse so oldest first
     const chats = [];
-    chatsSnapshot.docs.reverse().forEach((doc) => {
+    snapshot.docs.reverse().forEach((doc) => {
       const data = doc.data();
       if (data.prompt) chats.push({ role: "user", content: data.prompt });
       if (data.reply) chats.push({ role: "assistant", content: data.reply });
     });
-
     return chats;
   } catch (err) {
-    console.error("Failed to fetch chat history:", err);
+    console.error("Error fetching chat history:", err);
     return [];
   }
 }
 
-// Export a HTTPS Firebase function to handle your OpenAI requests
-export const openaiFunction = functions.https.onRequest(async (req, res) => {
-  if (req.method !== "POST") {
-    return res.status(405).send("Method Not Allowed");
-  }
-
+// POST /openai endpoint
+app.post("/openai", async (req, res) => {
   const { prompt, uid } = req.body;
-
   if (!prompt || !uid) {
     return res.status(400).json({ error: "Missing prompt or uid" });
   }
@@ -74,7 +91,7 @@ export const openaiFunction = functions.https.onRequest(async (req, res) => {
     const reply = completion.choices[0]?.message?.content || "Sorry, no response generated.";
     console.log("OpenAI reply:", reply);
 
-    // Save chat to Firestore
+    // Save conversation to Firestore
     await db.collection("users").doc(uid).collection("chats").add({
       prompt,
       reply,
@@ -86,4 +103,9 @@ export const openaiFunction = functions.https.onRequest(async (req, res) => {
     console.error("OpenAI request failed:", error);
     res.status(500).json({ error: error.message || "OpenAI request failed" });
   }
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Server listening on port ${PORT}`);
 });
