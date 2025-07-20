@@ -8,10 +8,10 @@ import fs from "fs/promises";
 const app = express();
 
 // Replace with your frontend URL for CORS
-const allowedOrigin = "https://yourdomain.com";
+const allowedOrigin = "https://alchemai-v2.webflow.io";
 
 app.use(cors({
-  origin: 'https://alchemai-v2.webflow.io', // your actual frontend domain here
+  origin: allowedOrigin,
   credentials: true
 }));
 
