@@ -11,5 +11,7 @@
     "cors": "^2.8.5",
     "openai": "^4.10.0",
     "firebase-admin": "^11.10.0"
+    "firebase-functions": "^4.3.0",
+    "googleapis": "^115.0.0"
   }
 }
