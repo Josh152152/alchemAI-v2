@@ -6,7 +6,15 @@ import fs from "fs/promises";
 
 // Initialize Express app
 const app = express();
-app.use(cors());
+
+// Replace with your frontend URL for CORS
+const allowedOrigin = "https://yourdomain.com";
+
+app.use(cors({
+  origin: allowedOrigin,
+  credentials: true,
+}));
+
 app.use(express.json());
 
 // Initialize Firebase Admin SDK
@@ -31,7 +39,7 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// Load agent specification prompt from file
+// Load agent specification prompt from file (fallback to default)
 async function loadAgentSpecification() {
   try {
     return await fs.readFile("./agent_specification.txt", "utf-8");
