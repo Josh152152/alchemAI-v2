@@ -17,7 +17,7 @@ app.use(cors({
 
 app.use(express.json());
 
-// Initialize Firebase Admin SDK
+// Initialize Firebase Admin SDK with service account
 if (!admin.apps.length) {
   const serviceAccountJSON = process.env.FIREBASE_SERVICE_ACCOUNT;
   if (!serviceAccountJSON) {
@@ -39,7 +39,7 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// Load agent specification prompt from file (fallback to default)
+// Load the agent's system prompt (fallback if file missing)
 async function loadAgentSpecification() {
   try {
     return await fs.readFile("./agent_specification.txt", "utf-8");
@@ -49,7 +49,7 @@ async function loadAgentSpecification() {
   }
 }
 
-// Fetch last N chat messages from Firestore for user
+// Fetch last N chat messages for a user from Firestore
 async function fetchChatHistory(uid, limit = 10) {
   try {
     const snapshot = await db
@@ -60,13 +60,13 @@ async function fetchChatHistory(uid, limit = 10) {
       .limit(limit)
       .get();
 
-    // Reverse so oldest first
     const chats = [];
     snapshot.docs.reverse().forEach((doc) => {
       const data = doc.data();
       if (data.prompt) chats.push({ role: "user", content: data.prompt });
       if (data.reply) chats.push({ role: "assistant", content: data.reply });
     });
+
     return chats;
   } catch (err) {
     console.error("Error fetching chat history:", err);
@@ -74,7 +74,7 @@ async function fetchChatHistory(uid, limit = 10) {
   }
 }
 
-// POST /openai endpoint
+// POST endpoint to handle OpenAI chat requests
 app.post("/openai", async (req, res) => {
   const { prompt, uid } = req.body;
   if (!prompt || !uid) {
@@ -99,7 +99,7 @@ app.post("/openai", async (req, res) => {
     const reply = completion.choices[0]?.message?.content || "Sorry, no response generated.";
     console.log("OpenAI reply:", reply);
 
-    // Save conversation to Firestore
+    // Save user prompt and AI reply to Firestore
     await db.collection("users").doc(uid).collection("chats").add({
       prompt,
       reply,
@@ -113,6 +113,7 @@ app.post("/openai", async (req, res) => {
   }
 });
 
+// Start the server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}`);
