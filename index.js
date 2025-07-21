@@ -140,12 +140,43 @@ app.post("/openai", async (req, res) => {
       timestamp: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    // Prepare data row for Google Sheets (customize columns later)
+    // Try to parse structured JSON from AI reply
+    let structuredData = {};
+    try {
+      structuredData = JSON.parse(reply);
+    } catch {
+      console.warn("AI reply is not valid JSON; saving raw reply only");
+    }
+
+    // Prepare data row with all expected fields (empty string fallback)
     const dataRow = [
-      new Date().toISOString(), // Timestamp
-      uid,                     // User ID
-      prompt,                  // Employer's input
-      reply,                   // AI reply
+      new Date().toISOString(),                        // Timestamp
+      uid,                                            // User ID
+      structuredData.job_title || '',
+      structuredData.responsibilities || '',
+      structuredData.compensation_range || '',
+      structuredData.benefits || '',
+      structuredData.work_life_balance || '',
+      structuredData.company_culture || '',
+      structuredData.reporting_line || '',
+      structuredData.team_size || '',
+      structuredData.ideal_candidate_profile || '',
+      structuredData.required_skills || '',
+      structuredData.growth_opportunity || '',
+      structuredData.company_values || '',
+      structuredData.workspace_type || '',
+      structuredData.unique_perks || '',
+      structuredData.hiring_timeline || '',
+      structuredData.candidate_type || '',
+      structuredData.key_projects || '',
+      structuredData.probation_details || '',
+      structuredData.experience_level || '',
+      structuredData.working_schedule || '',
+      structuredData.location_preferences || '',
+      structuredData.certifications || '',
+      // Optionally you can add raw prompt and raw reply for debugging
+      prompt,
+      reply,
     ];
 
     // Append row to Google Sheet
