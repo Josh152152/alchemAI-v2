@@ -60,7 +60,7 @@ async function appendToSheet(dataRow) {
 
     await sheetsApi.spreadsheets.values.append({
       spreadsheetId,
-      range: 'Sheet1', // Just use sheet name without range, Google API appends rows automatically
+      range: 'Sheet1', // Sheet name only, Google appends rows automatically
       valueInputOption: 'USER_ENTERED',
       resource: {
         values: [dataRow],
@@ -140,13 +140,12 @@ app.post("/openai", async (req, res) => {
       timestamp: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    // Prepare data row for Google Sheets (customize columns as needed)
+    // Prepare data row for Google Sheets (customize columns later)
     const dataRow = [
       new Date().toISOString(), // Timestamp
       uid,                     // User ID
       prompt,                  // Employer's input
       reply,                   // AI reply
-      // Add more structured fields here if you extract them later
     ];
 
     // Append row to Google Sheet
