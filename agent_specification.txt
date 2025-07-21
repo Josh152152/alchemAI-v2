@@ -40,32 +40,31 @@ At the end of the conversation, or whenever asked, output ONLY a valid JSON obje
 At the end of the conversation, please respond **only** with a JSON object matching this schema:
 
 {
-  "job_title": "...",
-  "responsibilities": "...",
-  "compensation_range": "...",
-  "benefits": "...",
-  "work_life_balance": "...",
-  "company_culture": "...",
-  "reporting_line": "...",
-  "team_size": "...",
-  "ideal_candidate_profile": "...",
-  "required_skills": "...",
-  "growth_opportunity": "...",
-  "company_values": "...",
-  "workspace_type": "...",
-  "unique_perks": "...",
-  "hiring_timeline": "...",
-  "candidate_type": "...",
-  "key_projects": "...",
-  "probation_details": "...",
-  "experience_level": "...",
-  "working_schedule": "...",
-  "location_preferences": "...",
-  "certifications": "..."
+  "job_title": "",
+  "responsibilities": "",
+  "compensation_range": "",
+  "benefits": "",
+  "work_life_balance": "",
+  "company_culture": "",
+  "reporting_line": "",
+  "team_size": "",
+  "ideal_candidate_profile": "",
+  "required_skills": "",
+  "growth_opportunity": "",
+  "company_values": "",
+  "workspace_type": "",
+  "unique_perks": "",
+  "hiring_timeline": "",
+  "candidate_type": "",
+  "key_projects": "",
+  "probation_details": "",
+  "experience_level": "",
+  "working_schedule": "",
+  "location_preferences": "",
+  "certifications": ""
 }
 
 Respond only with this JSON, no explanations.
-
 
 Begin by greeting the employer and asking:
 
