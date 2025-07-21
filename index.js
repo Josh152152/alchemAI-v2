@@ -52,7 +52,7 @@ async function initSheetsClient() {
   sheetsApi = google.sheets({ version: 'v4', auth: authClient });
 }
 
-// Call this once at startup
+// Initialize Google Sheets client before starting server
 await initSheetsClient();
 
 async function appendToSheet(dataRow) {
@@ -147,7 +147,7 @@ app.post("/openai", async (req, res) => {
       uid,
       prompt,
       reply,
-      // Add more extracted or derived fields here if you want
+      // You can add more fields here from your chat or user profile
     ];
 
     // Append row to Google Sheet
