@@ -3,6 +3,7 @@ import cors from "cors";
 import admin from "firebase-admin";
 import OpenAI from "openai";
 import fs from "fs/promises";
+import { google } from "googleapis";
 
 // Initialize Express app
 const app = express();
@@ -38,6 +39,36 @@ const db = admin.firestore();
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
+
+// Google Sheets setup
+const sheets = google.sheets('v4');
+
+async function appendToSheet(dataRow) {
+  try {
+    const auth = new google.auth.GoogleAuth({
+      credentials: JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT),
+      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+    });
+    const authClient = await auth.getClient();
+
+    const sheetsApi = google.sheets({ version: 'v4', auth: authClient });
+
+    const spreadsheetId = process.env.GOOGLE_SHEET_ID;
+
+    await sheetsApi.spreadsheets.values.append({
+      spreadsheetId,
+      range: 'Sheet1!A1', // Adjust to your sheet name and range if different
+      valueInputOption: 'USER_ENTERED',
+      resource: {
+        values: [dataRow],
+      },
+    });
+
+    console.log('Appended data to Google Sheet:', dataRow);
+  } catch (err) {
+    console.error('Error appending to Google Sheet:', err);
+  }
+}
 
 // Load the agent's system prompt (fallback if file missing)
 async function loadAgentSpecification() {
@@ -106,6 +137,21 @@ app.post("/openai", async (req, res) => {
       timestamp: admin.firestore.FieldValue.serverTimestamp(),
     });
 
+    // --- Google Sheets Append ---
+
+    // Prepare the row data to append. You can adjust these fields as needed.
+    // Example: Timestamp, UID, Prompt, Reply
+    const dataRow = [
+      new Date().toISOString(),
+      uid,
+      prompt,
+      reply,
+      // Add more extracted fields here if you want
+    ];
+
+    await appendToSheet(dataRow);
+
+    // Respond to frontend
     res.json({ reply });
   } catch (error) {
     console.error("OpenAI request failed:", error);
