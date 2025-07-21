@@ -25,7 +25,6 @@ if (!admin.apps.length) {
     console.error("Missing FIREBASE_SERVICE_ACCOUNT environment variable");
     process.exit(1);
   }
-
   const serviceAccount = JSON.parse(serviceAccountJSON);
 
   admin.initializeApp({
@@ -61,7 +60,7 @@ async function appendToSheet(dataRow) {
 
     await sheetsApi.spreadsheets.values.append({
       spreadsheetId,
-      range: 'Sheet1!A1', // Adjust sheet name/range if needed
+      range: 'Sheet1', // Just use sheet name without range, Google API appends rows automatically
       valueInputOption: 'USER_ENTERED',
       resource: {
         values: [dataRow],
@@ -143,11 +142,11 @@ app.post("/openai", async (req, res) => {
 
     // Prepare data row for Google Sheets (customize columns as needed)
     const dataRow = [
-      new Date().toISOString(),
-      uid,
-      prompt,
-      reply,
-      // You can add more fields here from your chat or user profile
+      new Date().toISOString(), // Timestamp
+      uid,                     // User ID
+      prompt,                  // Employer's input
+      reply,                   // AI reply
+      // Add more structured fields here if you extract them later
     ];
 
     // Append row to Google Sheet
