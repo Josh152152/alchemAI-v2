@@ -40,24 +40,28 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// Google Sheets setup
-const sheets = google.sheets('v4');
+// Google Sheets API client (will be initialized once)
+let sheetsApi;
+
+async function initSheetsClient() {
+  const auth = new google.auth.GoogleAuth({
+    credentials: JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT),
+    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+  });
+  const authClient = await auth.getClient();
+  sheetsApi = google.sheets({ version: 'v4', auth: authClient });
+}
+
+// Call this once at startup
+await initSheetsClient();
 
 async function appendToSheet(dataRow) {
   try {
-    const auth = new google.auth.GoogleAuth({
-      credentials: JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT),
-      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-    });
-    const authClient = await auth.getClient();
-
-    const sheetsApi = google.sheets({ version: 'v4', auth: authClient });
-
     const spreadsheetId = process.env.GOOGLE_SHEET_ID;
 
     await sheetsApi.spreadsheets.values.append({
       spreadsheetId,
-      range: 'Sheet1!A1', // Adjust to your sheet name and range if different
+      range: 'Sheet1!A1', // Adjust sheet name/range if needed
       valueInputOption: 'USER_ENTERED',
       resource: {
         values: [dataRow],
@@ -137,18 +141,16 @@ app.post("/openai", async (req, res) => {
       timestamp: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    // --- Google Sheets Append ---
-
-    // Prepare the row data to append. You can adjust these fields as needed.
-    // Example: Timestamp, UID, Prompt, Reply
+    // Prepare data row for Google Sheets (customize columns as needed)
     const dataRow = [
       new Date().toISOString(),
       uid,
       prompt,
       reply,
-      // Add more extracted fields here if you want
+      // Add more extracted or derived fields here if you want
     ];
 
+    // Append row to Google Sheet
     await appendToSheet(dataRow);
 
     // Respond to frontend
