@@ -39,7 +39,7 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// Google Sheets API client (will be initialized once)
+// Google Sheets API client (initialized once)
 let sheetsApi;
 
 async function initSheetsClient() {
@@ -174,7 +174,7 @@ app.post("/openai", async (req, res) => {
       structuredData.working_schedule || '',
       structuredData.location_preferences || '',
       structuredData.certifications || '',
-      // Optionally you can add raw prompt and raw reply for debugging
+      // Optionally include raw prompt and raw reply for debugging
       prompt,
       reply,
     ];
