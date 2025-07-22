@@ -108,6 +108,17 @@ async function fetchChatHistory(uid, limit = 1000) {
   }
 }
 
+// Helper: Extract JSON from AI reply that may contain extra text
+function extractJson(str) {
+  const firstBrace = str.indexOf('{');
+  const lastBrace = str.lastIndexOf('}');
+  if (firstBrace === -1 || lastBrace === -1) {
+    throw new Error("No JSON object found");
+  }
+  const jsonString = str.substring(firstBrace, lastBrace + 1);
+  return JSON.parse(jsonString);
+}
+
 // Resume chat endpoint: returns all chat messages so frontend can restore state
 app.get("/resume", async (req, res) => {
   const uid = req.query.uid;
@@ -149,10 +160,10 @@ app.post("/finalize", async (req, res) => {
     const finalReply = completion.choices[0]?.message?.content || "";
     console.log("Final structured reply:", finalReply);
 
-    // Parse JSON safely
+    // Parse JSON safely using helper
     let structuredData = {};
     try {
-      structuredData = JSON.parse(finalReply);
+      structuredData = extractJson(finalReply);
     } catch (e) {
       console.warn("Failed to parse JSON from final summary:", e);
       return res.status(500).json({ error: "AI did not return valid JSON" });
