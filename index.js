@@ -83,14 +83,14 @@ async function loadAgentSpecification() {
   }
 }
 
-// Fetch all chat messages for a user from Firestore (limit can be increased)
+// Fetch all chat messages for a user from Firestore (oldest first)
 async function fetchChatHistory(uid, limit = 1000) {
   try {
     const snapshot = await db
       .collection("users")
       .doc(uid)
       .collection("chats")
-      .orderBy("timestamp", "asc")  // oldest first
+      .orderBy("timestamp", "asc")
       .limit(limit)
       .get();
 
@@ -108,7 +108,7 @@ async function fetchChatHistory(uid, limit = 1000) {
   }
 }
 
-// Resume chat: returns all chat messages
+// Resume chat endpoint: returns all chat messages so frontend can restore state
 app.get("/resume", async (req, res) => {
   const uid = req.query.uid;
   if (!uid) return res.status(400).json({ error: "Missing uid" });
@@ -122,7 +122,7 @@ app.get("/resume", async (req, res) => {
   }
 });
 
-// Finalize conversation: get full JSON summary, append to Sheets
+// Finalize conversation: get final JSON summary, append to Google Sheets
 app.post("/finalize", async (req, res) => {
   const { uid } = req.body;
   if (!uid) return res.status(400).json({ error: "Missing uid" });
@@ -131,6 +131,7 @@ app.post("/finalize", async (req, res) => {
     const systemPrompt = await loadAgentSpecification();
     const chatHistory = await fetchChatHistory(uid);
 
+    // Ask AI to provide ONLY the final JSON summary object
     const messages = [
       { role: "system", content: systemPrompt },
       ...chatHistory,
@@ -157,6 +158,7 @@ app.post("/finalize", async (req, res) => {
       return res.status(500).json({ error: "AI did not return valid JSON" });
     }
 
+    // Prepare row for Google Sheets
     const dataRow = [
       new Date().toISOString(),                        // Timestamp
       uid,                                            // User ID
@@ -193,7 +195,7 @@ app.post("/finalize", async (req, res) => {
   }
 });
 
-// Existing chat endpoint
+// Chat interaction endpoint
 app.post("/openai", async (req, res) => {
   const { prompt, uid } = req.body;
   if (!prompt || !uid) {
