@@ -119,6 +119,14 @@ function extractJson(str) {
   return JSON.parse(jsonString);
 }
 
+// Build a concatenated prompt history string from chat history
+function buildPromptHistory(chatHistory) {
+  return chatHistory
+    .filter(msg => msg.role === 'user' && msg.content)
+    .map(msg => msg.content)
+    .join(' | ');
+}
+
 // Clear conversation endpoint: deletes all chat messages for user
 app.post("/clear", async (req, res) => {
   const { uid } = req.body;
@@ -192,16 +200,22 @@ app.post("/finalize", async (req, res) => {
       return res.status(500).json({ error: "AI did not return valid JSON" });
     }
 
-    // Prepare row for Google Sheets
+    // Build prompt history string
+    const prompt_history = buildPromptHistory(chatHistory);
+
+    // Prepare row for Google Sheets - mapping columns exactly as per sheet screenshot
     const dataRow = [
-      new Date().toISOString(),                        // Timestamp
-      uid,                                            // User ID
-      structuredData.job_title || '',
-      structuredData.responsibilities || '',
-      structuredData.compensation_range || '',
-      structuredData.benefits || '',
-      structuredData.work_life_balance || '',
-      structuredData.company_culture || '',
+      new Date().toISOString(),                        // A: Timestamp
+      uid,                                            // B: User_email (user ID)
+      prompt_history || '',                            // C: Prompt_history (concatenated user prompts)
+      structuredData.job_title || '',                  // D: job_title
+      structuredData.responsibilities || '',           // E: responsibilities
+      structuredData.compensation_range || '',         // F: compensation_range (1st)
+      structuredData.compensation_range || '',         // G: compensation_range (2nd)
+      structuredData.compensation_range || '',         // H: compensation_range (3rd)
+      structuredData.benefits || '',                    // I: benefits
+      structuredData.work_life_balance || '',          // J: work_life_balance
+      structuredData.company_culture || '',             // K: company_culture
       structuredData.reporting_line || '',
       structuredData.team_size || '',
       structuredData.ideal_candidate_profile || '',
