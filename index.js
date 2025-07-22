@@ -119,20 +119,6 @@ function extractJson(str) {
   return JSON.parse(jsonString);
 }
 
-// Resume chat endpoint: returns all chat messages so frontend can restore state
-app.get("/resume", async (req, res) => {
-  const uid = req.query.uid;
-  if (!uid) return res.status(400).json({ error: "Missing uid" });
-
-  try {
-    const chatHistory = await fetchChatHistory(uid);
-    res.json({ chatHistory });
-  } catch (err) {
-    console.error("Resume chat failed:", err);
-    res.status(500).json({ error: "Failed to resume chat" });
-  }
-});
-
 // Clear conversation endpoint: deletes all chat messages for user
 app.post("/clear", async (req, res) => {
   const { uid } = req.body;
@@ -153,6 +139,20 @@ app.post("/clear", async (req, res) => {
   } catch (err) {
     console.error("Failed to clear conversation:", err);
     res.status(500).json({ error: "Failed to clear conversation" });
+  }
+});
+
+// Resume chat endpoint: returns all chat messages so frontend can restore state
+app.get("/resume", async (req, res) => {
+  const uid = req.query.uid;
+  if (!uid) return res.status(400).json({ error: "Missing uid" });
+
+  try {
+    const chatHistory = await fetchChatHistory(uid);
+    res.json({ chatHistory });
+  } catch (err) {
+    console.error("Resume chat failed:", err);
+    res.status(500).json({ error: "Failed to resume chat" });
   }
 });
 
