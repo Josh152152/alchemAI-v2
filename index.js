@@ -133,6 +133,29 @@ app.get("/resume", async (req, res) => {
   }
 });
 
+// Clear conversation endpoint: deletes all chat messages for user
+app.post("/clear", async (req, res) => {
+  const { uid } = req.body;
+  if (!uid) return res.status(400).json({ error: "Missing uid" });
+
+  try {
+    const chatRef = db.collection("users").doc(uid).collection("chats");
+    const snapshot = await chatRef.get();
+
+    const batch = db.batch();
+    snapshot.forEach(doc => {
+      batch.delete(doc.ref);
+    });
+    await batch.commit();
+
+    console.log(`Cleared conversation for user ${uid}`);
+    res.json({ message: "Conversation cleared successfully." });
+  } catch (err) {
+    console.error("Failed to clear conversation:", err);
+    res.status(500).json({ error: "Failed to clear conversation" });
+  }
+});
+
 // Finalize conversation: get final JSON summary, append to Google Sheets
 app.post("/finalize", async (req, res) => {
   const { uid } = req.body;
