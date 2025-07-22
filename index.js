@@ -83,19 +83,19 @@ async function loadAgentSpecification() {
   }
 }
 
-// Fetch last N chat messages for a user from Firestore
-async function fetchChatHistory(uid, limit = 10) {
+// Fetch all chat messages for a user from Firestore (limit can be increased)
+async function fetchChatHistory(uid, limit = 1000) {
   try {
     const snapshot = await db
       .collection("users")
       .doc(uid)
       .collection("chats")
-      .orderBy("timestamp", "desc")
+      .orderBy("timestamp", "asc")  // oldest first
       .limit(limit)
       .get();
 
     const chats = [];
-    snapshot.docs.reverse().forEach((doc) => {
+    snapshot.docs.forEach(doc => {
       const data = doc.data();
       if (data.prompt) chats.push({ role: "user", content: data.prompt });
       if (data.reply) chats.push({ role: "assistant", content: data.reply });
@@ -108,12 +108,24 @@ async function fetchChatHistory(uid, limit = 10) {
   }
 }
 
-// POST endpoint to handle OpenAI chat requests
-app.post("/openai", async (req, res) => {
-  const { prompt, uid } = req.body;
-  if (!prompt || !uid) {
-    return res.status(400).json({ error: "Missing prompt or uid" });
+// Resume chat: returns all chat messages
+app.get("/resume", async (req, res) => {
+  const uid = req.query.uid;
+  if (!uid) return res.status(400).json({ error: "Missing uid" });
+
+  try {
+    const chatHistory = await fetchChatHistory(uid);
+    res.json({ chatHistory });
+  } catch (err) {
+    console.error("Resume chat failed:", err);
+    res.status(500).json({ error: "Failed to resume chat" });
   }
+});
+
+// Finalize conversation: get full JSON summary, append to Sheets
+app.post("/finalize", async (req, res) => {
+  const { uid } = req.body;
+  if (!uid) return res.status(400).json({ error: "Missing uid" });
 
   try {
     const systemPrompt = await loadAgentSpecification();
@@ -122,7 +134,10 @@ app.post("/openai", async (req, res) => {
     const messages = [
       { role: "system", content: systemPrompt },
       ...chatHistory,
-      { role: "user", content: prompt },
+      {
+        role: "user",
+        content: "Please provide ONLY a JSON object summarizing the entire job description fields as per the schema, using empty strings for missing fields. No additional explanation."
+      }
     ];
 
     const completion = await openai.chat.completions.create({
@@ -130,25 +145,18 @@ app.post("/openai", async (req, res) => {
       messages,
     });
 
-    const reply = completion.choices[0]?.message?.content || "Sorry, no response generated.";
-    console.log("OpenAI reply:", reply);
+    const finalReply = completion.choices[0]?.message?.content || "";
+    console.log("Final structured reply:", finalReply);
 
-    // Save user prompt and AI reply to Firestore
-    await db.collection("users").doc(uid).collection("chats").add({
-      prompt,
-      reply,
-      timestamp: admin.firestore.FieldValue.serverTimestamp(),
-    });
-
-    // Try to parse structured JSON from AI reply
+    // Parse JSON safely
     let structuredData = {};
     try {
-      structuredData = JSON.parse(reply);
-    } catch {
-      console.warn("AI reply is not valid JSON; saving raw reply only");
+      structuredData = JSON.parse(finalReply);
+    } catch (e) {
+      console.warn("Failed to parse JSON from final summary:", e);
+      return res.status(500).json({ error: "AI did not return valid JSON" });
     }
 
-    // Prepare data row with all expected fields (empty string fallback)
     const dataRow = [
       new Date().toISOString(),                        // Timestamp
       uid,                                            // User ID
@@ -174,15 +182,49 @@ app.post("/openai", async (req, res) => {
       structuredData.working_schedule || '',
       structuredData.location_preferences || '',
       structuredData.certifications || '',
-      // Optionally include raw prompt and raw reply for debugging
-      prompt,
-      reply,
     ];
 
-    // Append row to Google Sheet
     await appendToSheet(dataRow);
 
-    // Respond to frontend
+    res.json({ message: "Job description finalized and saved to Google Sheets." });
+  } catch (error) {
+    console.error("Finalize request failed:", error);
+    res.status(500).json({ error: error.message || "Failed to finalize conversation" });
+  }
+});
+
+// Existing chat endpoint
+app.post("/openai", async (req, res) => {
+  const { prompt, uid } = req.body;
+  if (!prompt || !uid) {
+    return res.status(400).json({ error: "Missing prompt or uid" });
+  }
+
+  try {
+    const systemPrompt = await loadAgentSpecification();
+    const chatHistory = await fetchChatHistory(uid, 10);
+
+    const messages = [
+      { role: "system", content: systemPrompt },
+      ...chatHistory,
+      { role: "user", content: prompt },
+    ];
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4",
+      messages,
+    });
+
+    const reply = completion.choices[0]?.message?.content || "Sorry, no response generated.";
+    console.log("OpenAI reply:", reply);
+
+    // Save user prompt and AI reply to Firestore
+    await db.collection("users").doc(uid).collection("chats").add({
+      prompt,
+      reply,
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
     res.json({ reply });
   } catch (error) {
     console.error("OpenAI request failed:", error);
