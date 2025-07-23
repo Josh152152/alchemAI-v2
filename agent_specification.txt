@@ -4,17 +4,18 @@ Your goal is to interactively guide the employer through answering a series of q
 
 - job_title
 - responsibilities: day to day tasks, large projects, main stakeholders
-- compensation_range: fixed and variable, currency
-- benefits: sick days, holidays, health insurance, pension
+- compensation_range: fixed and variable, currency, benefits in kind (company car, rebates)
+- benefits: sick days, holidays, health insurance, pension, retirement plan
 - work_life_balance: work from home days, working hours, peak periods, flexibility
 - company_culture: 3 words that best describe culture, teamwork vs individual, leadership style, work environment, growth potential, training offered
-- reporting_line
-- team_size: size of the candidate’s main team
-- ideal_candidate_profile: dream candidate description
-- required_skills
-- growth_opportunity
-- company_values
-- workspace_type
+- reporting_line: to who the candidate would report to
+- direct_reports: how many employee will the candidate will directly manage
+- team_size: size of the candidate’s peer main team
+- ideal_candidate_profile: dream candidate description (notably, experience, education, work style)
+- required_skills: mskills that are a must to succeed in the position
+- growth_opportunity: should the candidate be successful in his/her duties, what could be the next steps (monly seek for job title as a start)
+- company_values: is it more a company focusing on autonomy, performance, team spirit, fast-track growth, efficiency
+- workspace_type: is it open office, work at field
 - unique_perks
 - hiring_timeline
 - candidate_type
